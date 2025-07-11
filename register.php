@@ -1,24 +1,28 @@
 <?php
-include('../includes/db.php');  // Include the database connection
+include('../includes/db.php');  // Database connection
 session_start();
 
-if (isset($_POST['login'])) {
+if (isset($_POST['register'])) {
     $email = $_POST['email'];
-    $password = $_POST['password'];
+    $password = password_hash($_POST['password'], PASSWORD_DEFAULT); // Hash the password
+    $role = 'user'; // Default role for users
 
-    // Prepare the SQL query
+    // Check if the email already exists
     $stmt = $conn->prepare("SELECT * FROM users WHERE email = ?");
     $stmt->execute([$email]);
     $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-    if ($user && password_verify($password, $user['password'])) {
-        // Successful login
-        $_SESSION['user_id'] = $user['id']; // Store user ID in session
-        header("Location: ../index.php"); // Redirect to the main page
-        exit();
+    if ($user) {
+        echo "<script>alert('Email is already registered!');</script>";
     } else {
-        // Invalid login
-        $error_message = "Invalid email or password.";
+        // Insert new user
+        $stmt = $conn->prepare("INSERT INTO users (email, password, role) VALUES (?, ?, ?)");
+        $stmt->execute([$email, $password, $role]);
+
+        // Log the user in after successful registration
+        $_SESSION['user_id'] = $conn->lastInsertId();
+        header("Location: ../index.php"); // Redirect to the homepage
+        exit();
     }
 }
 ?>
@@ -28,7 +32,7 @@ if (isset($_POST['login'])) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
+    <title>Register</title>
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -40,7 +44,7 @@ if (isset($_POST['login'])) {
             align-items: center;
             height: 100vh;
         }
-        .login-container {
+        .register-container {
             background-color: #fff;
             padding: 30px;
             border-radius: 8px;
@@ -90,14 +94,14 @@ if (isset($_POST['login'])) {
     </style>
 </head>
 <body>
-    <div class="login-container">
-        <h2>Login</h2>
+    <div class="register-container">
+        <h2>Register</h2>
         <form method="POST">
             <label>Email:</label>
             <input type="email" name="email" required>
             <label>Password:</label>
             <input type="password" name="password" required>
-            <button type="submit" name="login">Login</button>
+            <button type="submit" name="register">Register</button>
         </form>
         <?php if (isset($error_message)): ?>
             <p class="error-message"><?= htmlspecialchars($error_message); ?></p>
